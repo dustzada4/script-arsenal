@@ -1,0 +1,115 @@
+--[[
+    ARSENAL HUB - ESP & AIMBOT (Cores Customizadas)
+    Funcionalidades:
+    - Aimbot: Trava na cabeça do jogador mais próximo do cursor.
+    - ESP: Destaca jogadores inimigos com cor customizada.
+    - Tecla de Ativação Aimbot: Botão Direito do Mouse (RMB)
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Configurações
+local Settings = {
+    AimbotEnabled = true,
+    AimPart = "Head", 
+    AimKey = Enum.UserInputType.MouseButton2, 
+    ESPEnabled = true,
+    -- ALTERE A COR AQUI: Color3.fromRGB(R, G, B)
+    ESPColor = Color3.fromRGB(0, 255, 0), -- Verde Neon
+    TeamCheck = true 
+}
+
+local HoldingAim = false
+
+local function isEnemy(player)
+    if Settings.TeamCheck and player.Team == LocalPlayer.Team then
+        return false
+    end
+    return player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0
+end
+
+local function getClosestPlayer()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if isEnemy(player) then
+            local character = player.Character
+            local targetPart = character:FindFirstChild(Settings.AimPart)
+            
+            if targetPart then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                if onScreen then
+                    local mousePos = UserInputService:GetMouseLocation()
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if distance < shortestDistance then
+                        closestPlayer = player
+                        shortestDistance = distance
+                    end
+                end
+            end
+        end
+    end
+    return closestPlayer
+end
+
+RunService.RenderStepped:Connect(function()
+    if Settings.AimbotEnabled and HoldingAim then
+        local target = getClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild(Settings.AimPart) then
+            local targetPos = target.Character[Settings.AimPart].Position
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+        end
+    end
+end)
+
+local function applyESP(player)
+    player.CharacterAdded:Connect(function(char)
+        if Settings.ESPEnabled then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "ESP_Highlight"
+            highlight.FillColor = Settings.ESPColor
+            highlight.OutlineColor = Color3.new(1, 1, 1)
+            highlight.FillTransparency = 0.5
+            highlight.OutlineTransparency = 0
+            highlight.Adornee = char
+            highlight.Parent = char
+        end
+    end)
+    
+    if player.Character then
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "ESP_Highlight"
+        highlight.FillColor = Settings.ESPColor
+        highlight.OutlineColor = Color3.new(1, 1, 1)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        highlight.Adornee = player.Character
+        highlight.Parent = player.Character
+    end
+end
+
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        applyESP(player)
+    end
+end
+Players.PlayerAdded:Connect(applyESP)
+
+UserInputService.InputBegan:Connect(function(input)
+    if input.UserInputType == Settings.AimKey then
+        HoldingAim = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Settings.AimKey then
+        HoldingAim = false
+    end
+end)
+
+print("Arsenal Script Loaded: Cor do ESP Alterada!")
